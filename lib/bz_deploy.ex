@@ -1,27 +1,20 @@
 defmodule BzDeploy do
-  defstruct [
-    image_name: "image",
-    image_tag: "latest",
-    kustomization_file: "kustomization.yaml",
-    kube_context: "default",
-    skip_build: false
-  ]
-
-  def run(config \\ %__MODULE__{}) do
+  def run(config \\ %BzDeploy.Config{}) do
     # Change to the directory of the script
     File.cd!(Path.dirname(__ENV__.file))
 
-    digest = if config.skip_build do
-      IO.puts "\e[1mSkipping build step...\e[0m"
-      get_existing_digest(config)
-    else
-      build_and_push_image(config)
-    end
+    digest =
+      if config.skip_build do
+        IO.puts("\e[1mSkipping build step...\e[0m")
+        get_existing_digest(config)
+      else
+        build_and_push_image(config)
+      end
 
-    IO.puts "\e[1mdeploying \e[32m#{digest}\e[0m"
+    IO.puts("\e[1mdeploying \e[32m#{digest}\e[0m")
 
     manifests = Path.join(System.tmp_dir!(), "manifests-#{String.slice(digest, -7..-1)}")
-    IO.puts "patched manifests copied to \e[33m#{manifests}\e[0m"
+    IO.puts("patched manifests copied to \e[33m#{manifests}\e[0m")
 
     File.cp_r!("manifests", manifests)
 
@@ -29,20 +22,26 @@ defmodule BzDeploy do
 
     apply_manifests(manifests, config)
 
-    IO.puts "\e[1mcleaning up\e[0m"
+    IO.puts("\e[1mcleaning up\e[0m")
     File.rm_rf!(manifests)
   end
 
   defp build_and_push_image(config) do
     image = "#{config.image_name}:#{config.image_tag}"
-    IO.puts "\e[1mbuilding image...\e[0m"
-    {_, 0} = System.cmd("docker", ["build", ".", "--platform=linux/arm64", "-t", image, "--push"], into: IO.stream(:stdio, :line))
+    IO.puts("\e[1mbuilding image...\e[0m")
+
+    {_, 0} =
+      System.cmd("docker", ["build", ".", "--platform=linux/arm64", "-t", image, "--push"],
+        into: IO.stream(:stdio, :line)
+      )
+
     get_existing_digest(config)
   end
 
   defp get_existing_digest(config) do
     image = "#{config.image_name}:#{config.image_tag}"
     {image, 0} = System.cmd("docker", ["inspect", "--format={{index .RepoDigests 0}}", image])
+
     image
     |> String.trim()
     |> String.split("@")
@@ -86,8 +85,13 @@ defmodule BzDeploy do
 
     for result <- results do
       case result do
-        {:ok, resource} -> IO.puts "Successfully applied resource: #{resource["kind"]}/#{resource["metadata"]["name"]}"
-        {:error, reason} -> IO.puts "Failed to apply resource: #{inspect(reason)}"
+        {:ok, resource} ->
+          IO.puts(
+            "Successfully applied resource: #{resource["kind"]}/#{resource["metadata"]["name"]}"
+          )
+
+        {:error, reason} ->
+          IO.puts("Failed to apply resource: #{inspect(reason)}")
       end
     end
   end
