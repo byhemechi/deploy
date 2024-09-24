@@ -1,8 +1,5 @@
 defmodule BzDeploy do
   def run(config \\ %BzDeploy.Config{}) do
-    # Change to the directory of the script
-    File.cd!(Path.dirname(__ENV__.file))
-
     digest =
       if config.skip_build do
         IO.puts("\e[1mSkipping build step...\e[0m")
